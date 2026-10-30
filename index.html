@@ -1,0 +1,1138 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#F2F2F7" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Rekap Cetak">
+    <title>Rekap Laporan Harian - Operator Cetak</title>
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'media',
+            theme: {
+                extend: {
+                    colors: {
+                        iosBg: {
+                            light: '#F2F2F7',
+                            dark: '#000000'
+                        },
+                        iosCard: {
+                            light: '#FFFFFF',
+                            dark: '#1C1C1E'
+                        },
+                        iosBlue: '#007AFF',
+                        iosGreen: '#34C759',
+                        iosOrange: '#FF9500',
+                        iosRed: '#FF3B30',
+                        iosGray: {
+                            100: '#E5E5EA',
+                            200: '#D1D1D6',
+                            300: '#C7C7CC',
+                            400: '#AEAEB2',
+                            500: '#8E8E93',
+                            600: '#636366'
+                        }
+                    },
+                    fontFamily: {
+                        sf: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Display"', '"SF Pro Text"', '"Helvetica Neue"', 'Helvetica', 'Arial', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Tesseract.js CDN (Client-side Local OCR) -->
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+
+    <style>
+        /* iOS 18 Design Custom Styles */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", Arial, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+            touch-action: manipulation;
+        }
+
+        .frosted-glass {
+            background: rgba(255, 255, 255, 0.75);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .frosted-glass {
+                background: rgba(28, 28, 30, 0.75);
+            }
+        }
+
+        /* iOS Active Button Animation */
+        .ios-btn-active:active {
+            transform: scale(0.96);
+            transition: transform 0.15s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+
+        /* iOS Bottom Sheet Modal Transition */
+        .sheet-modal {
+            transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1);
+        }
+        .sheet-modal.hidden-sheet {
+            transform: translateY(100%);
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 0px;
+            background: transparent;
+        }
+
+        .item-card-enter {
+            animation: iosToastIn 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        /* Fixed App Frame Layout */
+        .app-container {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            max-width: 32rem;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        /* Dynamic Glass Header/Footer Sticky Rules */
+        .sticky-ios-header {
+            position: sticky;
+            top: 0;
+            z-index: 40;
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+        }
+
+        /* Toast animation */
+        @keyframes iosToastIn {
+            from { opacity: 0; transform: translateY(-20px) scale(0.95); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .toast-animate {
+            animation: iosToastIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+    </style>
+</head>
+<body class="bg-iosBg-light dark:bg-iosBg-dark text-slate-900 dark:text-slate-100 min-h-screen flex flex-col font-sf antialiased selection:bg-iosBlue selection:text-white pb-12">
+
+    <!-- iOS Navigation Bar -->
+    <header class="sticky-ios-header frosted-glass border-b border-iosGray-200/50 dark:border-iosGray-600/30 px-4 pt-10 pb-3 flex justify-between items-center transition-all">
+        <div>
+            <span class="text-[10px] font-bold uppercase tracking-wider text-iosGray-500">iOS 18 Native Assistant</span>
+            <h1 class="text-xl font-bold tracking-tight">Rekap Cetak Banner</h1>
+        </div>
+        <div class="flex items-center gap-2">
+            <span id="storageProtectionBadge" class="text-[9px] font-bold px-2 py-0.5 rounded-full bg-iosGreen/15 text-iosGreen">Memori Aman</span>
+            <button id="openSettingsBtn" class="ios-btn-active p-2 rounded-full bg-iosGray-100 dark:bg-iosGray-600/30 text-iosBlue font-medium text-sm flex items-center justify-center">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="flex-1 max-w-lg w-full mx-auto px-4 pt-4 space-y-5">
+
+        <!-- Banner Info Card -->
+        <div class="bg-iosCard-light dark:bg-iosCard-dark rounded-2xl p-4 shadow-sm border border-slate-200/60 dark:border-slate-800 flex justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-full bg-iosBlue/10 text-iosBlue flex items-center justify-center font-bold text-lg">
+                    <span id="avatarInit">I</span>
+                </div>
+                <div>
+                    <h2 id="operatorName" class="font-bold text-base leading-snug">Irfan</h2>
+                    <p class="text-xs text-iosGray-500"><span id="operatorRole">Operator</span> • <span id="operatorShift">15.00 - 23.00</span></p>
+                </div>
+            </div>
+            <button id="quickEditBtn" class="text-xs text-iosBlue font-semibold bg-iosBlue/10 px-3 py-1.5 rounded-full ios-btn-active">
+                Ubah Profil
+            </button>
+        </div>
+
+        <!-- Section: Actions (Camera / Upload Input) -->
+        <div class="bg-iosCard-light dark:bg-iosCard-dark rounded-2xl p-4 shadow-sm border border-slate-200/60 dark:border-slate-800 space-y-3">
+            <h3 class="text-xs font-semibold uppercase tracking-wider text-iosGray-500 px-1">Sumber Layar Explorer</h3>
+            
+            <div class="grid grid-cols-2 gap-3">
+                <!-- Camera Input -->
+                <label class="ios-btn-active flex flex-col items-center justify-center p-4 rounded-xl bg-iosBlue text-white font-medium cursor-pointer shadow-md shadow-iosBlue/20 text-center">
+                    <svg class="w-7 h-7 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h0.93a2 2 0 001.664-.89l0.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l0.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                    <span class="text-xs font-semibold">Foto Monitor</span>
+                    <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden">
+                </label>
+
+                <!-- File Upload Input -->
+                <label class="ios-btn-active flex flex-col items-center justify-center p-4 rounded-xl bg-iosGray-100 dark:bg-iosGray-600/30 text-slate-800 dark:text-slate-100 font-medium cursor-pointer text-center">
+                    <svg class="w-7 h-7 mb-1 text-iosBlue" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                    <span class="text-xs font-semibold">Unggah Galeri</span>
+                    <input type="file" id="fileInput" accept="image/*" class="hidden">
+                </label>
+            </div>
+        </div>
+
+        <!-- Editor & Preprocessing Section -->
+        <div id="imagePreprocessCard" class="hidden bg-iosCard-light dark:bg-iosCard-dark rounded-2xl p-4 shadow-sm border border-slate-200/60 dark:border-slate-800 space-y-3">
+            <div class="flex justify-between items-center">
+                <h3 class="text-xs font-semibold uppercase tracking-wider text-iosGray-500">Penyesuaian Gambar</h3>
+                <button id="cancelImageBtn" class="text-xs text-iosRed font-medium">Batal</button>
+            </div>
+
+            <div class="relative w-full aspect-video bg-black rounded-xl overflow-hidden flex items-center justify-center border border-slate-700">
+                <canvas id="cropCanvas" class="max-w-full max-h-full object-contain"></canvas>
+            </div>
+
+            <div class="flex justify-between items-center gap-2 pt-1">
+                <button id="rotateBtn" class="ios-btn-active flex-1 py-2 px-3 rounded-lg bg-iosGray-100 dark:bg-iosGray-600/30 text-xs font-medium flex items-center justify-center gap-1">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                    Rotasi 90°
+                </button>
+                <button id="processOcrBtn" class="ios-btn-active flex-1 py-2 px-3 rounded-lg bg-iosGreen text-white text-xs font-bold shadow-sm">
+                    Mulai Scan OCR
+                </button>
+            </div>
+        </div>
+
+        <!-- Scanning Progress Overlay Card -->
+        <div id="progressCard" class="hidden bg-iosCard-light dark:bg-iosCard-dark rounded-2xl p-4 shadow-sm border border-slate-200/60 dark:border-slate-800 space-y-3">
+            <div class="flex items-center space-x-3">
+                <div class="animate-spin rounded-full h-6 w-6 border-2 border-iosBlue border-t-transparent"></div>
+                <div class="flex-1">
+                    <div class="flex justify-between items-center mb-1">
+                        <span id="progressStatus" class="text-xs font-semibold text-iosGray-600 dark:text-iosGray-400">Mempersiapkan OCR...</span>
+                        <span id="progressPercent" class="text-xs font-bold text-iosBlue">0%</span>
+                    </div>
+                    <div class="w-full bg-iosGray-200 dark:bg-iosGray-600/40 rounded-full h-1.5 overflow-hidden">
+                        <div id="progressBar" class="bg-iosBlue h-1.5 rounded-full transition-all duration-200" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Raw OCR Input Area -->
+        <div class="bg-iosCard-light dark:bg-iosCard-dark rounded-2xl p-4 shadow-sm border border-slate-200/60 dark:border-slate-800 space-y-2">
+            <div class="flex justify-between items-center">
+                <h3 class="text-xs font-semibold uppercase tracking-wider text-iosGray-500">Teks Mentah Hasil OCR</h3>
+                <button id="clearRawBtn" class="text-xs text-iosRed font-medium">Bersihkan</button>
+            </div>
+            <textarea id="rawTextInput" rows="5" placeholder="Tempel / hasil scan foto layar Windows Explorer akan muncul di sini..." class="w-full text-xs font-mono p-3 bg-iosBg-light dark:bg-iosBg-dark rounded-xl border border-iosGray-200 dark:border-iosGray-600/40 focus:outline-none focus:ring-2 focus:ring-iosBlue/50 resize-none"></textarea>
+            <button id="manualParseBtn" class="ios-btn-active w-full py-2.5 rounded-xl bg-iosBlue text-white text-xs font-semibold flex items-center justify-center gap-1 shadow-sm">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                Proses & Bersihkan Laporan Automatically
+            </button>
+        </div>
+
+        <!-- Interactive Item List & Custom Add Section -->
+        <div class="bg-iosCard-light dark:bg-iosCard-dark rounded-2xl p-4 shadow-sm border border-slate-200/60 dark:border-slate-800 space-y-3">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h3 class="text-xs font-semibold uppercase tracking-wider text-iosGray-500">Daftar Item Cetak Clean</h3>
+                    <p class="text-[10px] text-iosGray-500">Edit jika ada nama/ukuran yang salah</p>
+                </div>
+                <button id="openAddItemBtn" class="ios-btn-active bg-iosGreen/15 text-iosGreen font-bold px-3 py-1.5 rounded-full text-xs flex items-center gap-1">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                    Tambah Manual
+                </button>
+            </div>
+
+            <!-- Dynamic Interactive Item List -->
+            <div id="interactiveList" class="space-y-2 max-h-72 overflow-y-auto pr-1">
+                <p class="text-xs text-iosGray-500 text-center py-4 italic">Belum ada item terdeteksi.</p>
+            </div>
+
+            <button id="learnKnowledgeBtn" class="ios-btn-active w-full py-2.5 rounded-xl bg-iosOrange text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-md shadow-iosOrange/20">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 01-2 2h-1a2 2 0 01-2-2v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg>
+                Ingat Perubahan Ini Ke Memory Local
+            </button>
+        </div>
+
+        <!-- Final Report Output (WhatsApp Format) -->
+        <div class="bg-iosCard-light dark:bg-iosCard-dark rounded-2xl p-4 shadow-sm border border-slate-200/60 dark:border-slate-800 space-y-3">
+            <div class="flex justify-between items-center">
+                <h3 class="text-xs font-semibold uppercase tracking-wider text-iosGray-500">Hasil Rekap Laporan WhatsApp</h3>
+                <span class="text-[10px] font-semibold bg-iosGreen/15 text-iosGreen px-2 py-0.5 rounded-full">Ready to Send</span>
+            </div>
+
+            <div class="relative">
+                <pre id="outputPreview" class="w-full text-xs font-mono p-3 bg-iosBg-light dark:bg-iosBg-dark rounded-xl border border-iosGray-200 dark:border-iosGray-600/40 whitespace-pre-wrap break-words min-h-[140px] text-slate-800 dark:text-slate-200 selection:bg-iosBlue selection:text-white">Memuat format laporan...</pre>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2 pt-1">
+                <button id="copyBtn" class="ios-btn-active py-3 px-4 rounded-xl bg-iosGreen text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md shadow-iosGreen/20">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
+                    Salin Laporan
+                </button>
+                <button id="saveHistoryBtn" class="ios-btn-active py-3 px-4 rounded-xl bg-iosBlue text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md shadow-iosBlue/20">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg>
+                    Simpan Riwayat
+                </button>
+            </div>
+        </div>
+
+        <!-- History Card Group -->
+        <div class="bg-iosCard-light dark:bg-iosCard-dark rounded-2xl p-4 shadow-sm border border-slate-200/60 dark:border-slate-800 space-y-3">
+            <div class="flex justify-between items-center">
+                <h3 class="text-xs font-semibold uppercase tracking-wider text-iosGray-500">Riwayat Rekap Tersimpan</h3>
+                <button id="clearHistoryBtn" class="text-xs text-iosRed font-medium">Hapus Semua</button>
+            </div>
+            <div id="historyContainer" class="space-y-2 max-h-48 overflow-y-auto pr-1">
+                <p class="text-xs text-iosGray-500 text-center py-3 italic">Belum ada riwayat tersimpan hari ini.</p>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Modal Tambah Item Manual -->
+    <div id="addItemBackdrop" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 hidden opacity-0 transition-opacity duration-300"></div>
+    <div id="addItemSheet" class="fixed bottom-0 left-0 right-0 max-w-lg mx-auto bg-iosCard-light dark:bg-iosCard-dark rounded-t-3xl z-50 p-5 shadow-2xl border-t border-slate-200/50 dark:border-slate-700 sheet-modal hidden-sheet">
+        <div class="w-12 h-1.5 bg-iosGray-300 dark:bg-iosGray-600 rounded-full mx-auto mb-4"></div>
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-bold">Tambah Item Cetak Manual</h3>
+            <button id="closeAddItemBtn" class="p-1 rounded-full bg-iosGray-100 dark:bg-iosGray-600/30 text-iosGray-500">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+
+        <form id="addItemForm" class="space-y-3">
+            <div>
+                <label class="block text-xs font-semibold text-iosGray-500 mb-1">Nama Pemesan / File</label>
+                <input type="text" id="addName" placeholder="Contoh: Banner Warung Mbak Dah" required class="w-full p-3 text-sm bg-iosBg-light dark:bg-iosBg-dark rounded-xl border border-iosGray-200 dark:border-iosGray-600/40 focus:outline-none focus:ring-2 focus:ring-iosBlue">
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-semibold text-iosGray-500 mb-1">Ukuran (CM)</label>
+                    <input type="text" id="addSize" placeholder="100x50 / 200x100" class="w-full p-3 text-sm bg-iosBg-light dark:bg-iosBg-dark rounded-xl border border-iosGray-200 dark:border-iosGray-600/40 focus:outline-none focus:ring-2 focus:ring-iosBlue">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-iosGray-500 mb-1">Jumlah (Qty)</label>
+                    <input type="number" id="addQty" value="1" min="1" required class="w-full p-3 text-sm bg-iosBg-light dark:bg-iosBg-dark rounded-xl border border-iosGray-200 dark:border-iosGray-600/40 focus:outline-none focus:ring-2 focus:ring-iosBlue">
+                </div>
+            </div>
+            <div class="flex items-center gap-2 pt-1">
+                <input type="checkbox" id="addIsXBanner" class="w-4 h-4 text-iosBlue rounded focus:ring-iosBlue">
+                <label for="addIsXBanner" class="text-xs font-medium text-slate-700 dark:text-slate-300">Kategori X-Banner (Ukuran Dibuang Otomatis)</label>
+            </div>
+            <button type="submit" class="ios-btn-active w-full py-3 rounded-xl bg-iosGreen text-white font-bold text-sm shadow-md shadow-iosGreen/20">
+                Simpan ke Daftar
+            </button>
+        </form>
+    </div>
+
+    <!-- iOS Bottom Sheet Drawer (Settings Modal) -->
+    <div id="settingsBackdrop" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 hidden opacity-0 transition-opacity duration-300"></div>
+    <div id="settingsSheet" class="fixed bottom-0 left-0 right-0 max-w-lg mx-auto bg-iosCard-light dark:bg-iosCard-dark rounded-t-3xl z-50 p-5 shadow-2xl border-t border-slate-200/50 dark:border-slate-700 sheet-modal hidden-sheet">
+        <div class="w-12 h-1.5 bg-iosGray-300 dark:bg-iosGray-600 rounded-full mx-auto mb-4"></div>
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-bold">Pengaturan Profil Operator</h3>
+            <button id="closeSettingsBtn" class="p-1 rounded-full bg-iosGray-100 dark:bg-iosGray-600/30 text-iosGray-500">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+
+        <form id="settingsForm" class="space-y-4">
+            <div>
+                <label class="block text-xs font-semibold text-iosGray-500 mb-1">Nama Operator</label>
+                <input type="text" id="inputName" value="Irfan" required class="w-full p-3 text-sm bg-iosBg-light dark:bg-iosBg-dark rounded-xl border border-iosGray-200 dark:border-iosGray-600/40 focus:outline-none focus:ring-2 focus:ring-iosBlue">
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-iosGray-500 mb-1">Jabatan / Job</label>
+                <input type="text" id="inputJob" value="Operator" required class="w-full p-3 text-sm bg-iosBg-light dark:bg-iosBg-dark rounded-xl border border-iosGray-200 dark:border-iosGray-600/40 focus:outline-none focus:ring-2 focus:ring-iosBlue">
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-iosGray-500 mb-1">Jam Kerja / Shift</label>
+                <input type="text" id="inputShift" value="15.00 - 23.00" required class="w-full p-3 text-sm bg-iosBg-light dark:bg-iosBg-dark rounded-xl border border-iosGray-200 dark:border-iosGray-600/40 focus:outline-none focus:ring-2 focus:ring-iosBlue">
+            </div>
+
+            <!-- Knowledge Base Backup & Restore -->
+            <div class="pt-2 border-t border-iosGray-200 dark:border-iosGray-600/40 space-y-2">
+                <label class="block text-xs font-semibold text-iosGray-500">Cadangkan Ingatan Pembelajaran (Knowledge Base)</label>
+                <div class="grid grid-cols-2 gap-2">
+                    <button type="button" id="exportKnowledgeBtn" class="ios-btn-active py-2 px-3 rounded-xl bg-iosGray-100 dark:bg-iosGray-600/30 text-xs font-semibold text-iosBlue flex items-center justify-center gap-1">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                        Ekspor Memory
+                    </button>
+                    <label class="ios-btn-active py-2 px-3 rounded-xl bg-iosGray-100 dark:bg-iosGray-600/30 text-xs font-semibold text-iosGreen flex items-center justify-center gap-1 cursor-pointer text-center">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                        Impor Memory
+                        <input type="file" id="importKnowledgeInput" accept=".json" class="hidden">
+                    </label>
+                </div>
+            </div>
+
+            <button type="submit" class="ios-btn-active w-full py-3 rounded-xl bg-iosBlue text-white font-bold text-sm shadow-md shadow-iosBlue/20">
+                Simpan Perubahan
+            </button>
+        </form>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div id="toastContainer" class="fixed top-16 left-1/2 -translate-x-1/2 z-50 pointer-events-none w-full max-w-xs px-4"></div>
+
+    <script>
+        const STATE = {
+            profile: {
+                name: 'Irfan',
+                job: 'Operator',
+                shift: '15.00 - 23.00'
+            },
+            rawText: '',
+            parsedItems: [], 
+            currentImage: null,
+            rotationAngle: 0,
+            history: [],
+            knowledgeBase: {
+                nameMappings: {},
+                customerSizes: {}
+            }
+        };
+
+        const elements = {
+            operatorName: document.getElementById('operatorName'),
+            operatorRole: document.getElementById('operatorRole'),
+            operatorShift: document.getElementById('operatorShift'),
+            avatarInit: document.getElementById('avatarInit'),
+            cameraInput: document.getElementById('cameraInput'),
+            fileInput: document.getElementById('fileInput'),
+            rawTextInput: document.getElementById('rawTextInput'),
+            outputPreview: document.getElementById('outputPreview'),
+            manualParseBtn: document.getElementById('manualParseBtn'),
+            copyBtn: document.getElementById('copyBtn'),
+            saveHistoryBtn: document.getElementById('saveHistoryBtn'),
+            clearRawBtn: document.getElementById('clearRawBtn'),
+            clearHistoryBtn: document.getElementById('clearHistoryBtn'),
+            historyContainer: document.getElementById('historyContainer'),
+            openSettingsBtn: document.getElementById('openSettingsBtn'),
+            quickEditBtn: document.getElementById('quickEditBtn'),
+            closeSettingsBtn: document.getElementById('closeSettingsBtn'),
+            settingsBackdrop: document.getElementById('settingsBackdrop'),
+            settingsSheet: document.getElementById('settingsSheet'),
+            settingsForm: document.getElementById('settingsForm'),
+            inputName: document.getElementById('inputName'),
+            inputJob: document.getElementById('inputJob'),
+            inputShift: document.getElementById('inputShift'),
+            imagePreprocessCard: document.getElementById('imagePreprocessCard'),
+            cropCanvas: document.getElementById('cropCanvas'),
+            cancelImageBtn: document.getElementById('cancelImageBtn'),
+            rotateBtn: document.getElementById('rotateBtn'),
+            processOcrBtn: document.getElementById('processOcrBtn'),
+            progressCard: document.getElementById('progressCard'),
+            progressStatus: document.getElementById('progressStatus'),
+            progressPercent: document.getElementById('progressPercent'),
+            progressBar: document.getElementById('progressBar'),
+            interactiveList: document.getElementById('interactiveList'),
+            openAddItemBtn: document.getElementById('openAddItemBtn'),
+            addItemBackdrop: document.getElementById('addItemBackdrop'),
+            addItemSheet: document.getElementById('addItemSheet'),
+            closeAddItemBtn: document.getElementById('closeAddItemBtn'),
+            addItemForm: document.getElementById('addItemForm'),
+            addName: document.getElementById('addName'),
+            addSize: document.getElementById('addSize'),
+            addQty: document.getElementById('addQty'),
+            addIsXBanner: document.getElementById('addIsXBanner'),
+            learnKnowledgeBtn: document.getElementById('learnKnowledgeBtn')
+        };
+
+        window.addEventListener('DOMContentLoaded', () => {
+            requestPersistentStorage();
+            loadProfile();
+            loadHistory();
+            loadKnowledgeBase();
+            setupEventListeners();
+            generateFinalReport();
+            registerServiceWorker();
+        });
+
+        // Proteksi Penyimpanan dari Auto-Cleanup Browser
+        async function requestPersistentStorage() {
+            if (navigator.storage && navigator.storage.persist) {
+                const isPersisted = await navigator.storage.persist();
+                const badge = document.getElementById('storageProtectionBadge');
+                if (badge) {
+                    badge.textContent = isPersisted ? 'Memori Permanen' : 'Memori Standar';
+                    badge.className = isPersisted 
+                        ? 'text-[9px] font-bold px-2 py-0.5 rounded-full bg-iosGreen/15 text-iosGreen'
+                        : 'text-[9px] font-bold px-2 py-0.5 rounded-full bg-iosOrange/15 text-iosOrange';
+                }
+            }
+        }
+
+        function loadKnowledgeBase() {
+            const saved = localStorage.getItem('rekap_knowledge_base');
+            if (saved) {
+                try { STATE.knowledgeBase = JSON.parse(saved); } catch(e) {}
+            }
+        }
+
+        function saveKnowledgeBase() {
+            localStorage.setItem('rekap_knowledge_base', JSON.stringify(STATE.knowledgeBase));
+        }
+
+        function triggerHaptic(type = 'light') {
+            if ('vibrate' in navigator) {
+                if (type === 'light') navigator.vibrate(10);
+                else if (type === 'medium') navigator.vibrate(25);
+                else if (type === 'success') navigator.vibrate([15, 30, 15]);
+            }
+        }
+
+        function showToast(message, type = 'info') {
+            triggerHaptic('light');
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            const bgClass = type === 'success' ? 'bg-iosGreen text-white' : 'bg-slate-900/90 dark:bg-white/90 text-white dark:text-slate-900';
+            toast.className = `toast-animate ${bgClass} frosted-glass px-4 py-2.5 rounded-full text-xs font-semibold shadow-lg text-center mx-auto flex items-center justify-center gap-2 mb-2`;
+            toast.innerHTML = `<span>${message}</span>`;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transition = 'opacity 0.3s ease';
+                setTimeout(() => toast.remove(), 300);
+            }, 2500);
+        }
+
+        function loadProfile() {
+            const saved = localStorage.getItem('operator_profile');
+            if (saved) {
+                try { STATE.profile = JSON.parse(saved); } catch(e) {}
+            }
+            updateProfileUI();
+        }
+
+        function updateProfileUI() {
+            elements.operatorName.textContent = STATE.profile.name;
+            elements.operatorRole.textContent = STATE.profile.job;
+            elements.operatorShift.textContent = STATE.profile.shift;
+            elements.avatarInit.textContent = STATE.profile.name.charAt(0).toUpperCase() || 'O';
+            elements.inputName.value = STATE.profile.name;
+            elements.inputJob.value = STATE.profile.job;
+            elements.inputShift.value = STATE.profile.shift;
+        }
+
+        function saveProfile(name, job, shift) {
+            STATE.profile = { name, job, shift };
+            localStorage.setItem('operator_profile', JSON.stringify(STATE.profile));
+            updateProfileUI();
+            generateFinalReport();
+            showToast('Profil diperbarui', 'success');
+        }
+
+        function openSettings() {
+            triggerHaptic('medium');
+            elements.settingsBackdrop.classList.remove('hidden');
+            elements.settingsSheet.classList.remove('hidden-sheet');
+            setTimeout(() => elements.settingsBackdrop.classList.remove('opacity-0'), 10);
+        }
+
+        function closeSettings() {
+            triggerHaptic('light');
+            elements.settingsBackdrop.classList.add('opacity-0');
+            elements.settingsSheet.classList.add('hidden-sheet');
+            setTimeout(() => elements.settingsBackdrop.classList.add('hidden'), 300);
+        }
+
+        function setupEventListeners() {
+            elements.openSettingsBtn.addEventListener('click', openSettings);
+            elements.quickEditBtn.addEventListener('click', openSettings);
+            elements.closeSettingsBtn.addEventListener('click', closeSettings);
+            elements.settingsBackdrop.addEventListener('click', closeSettings);
+
+            elements.settingsForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                saveProfile(elements.inputName.value, elements.inputJob.value, elements.inputShift.value);
+                closeSettings();
+            });
+
+            // Ekspor & Impor Knowledge Base
+            const exportBtn = document.getElementById('exportKnowledgeBtn');
+            const importInput = document.getElementById('importKnowledgeInput');
+
+            if (exportBtn) {
+                exportBtn.addEventListener('click', () => {
+                    triggerHaptic('success');
+                    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(STATE.knowledgeBase, null, 2));
+                    const downloadAnchor = document.createElement('a');
+                    downloadAnchor.setAttribute("href", dataStr);
+                    downloadAnchor.setAttribute("download", `knowledge_base_operator_${new Date().toISOString().slice(0,10)}.json`);
+                    document.body.appendChild(downloadAnchor);
+                    downloadAnchor.click();
+                    downloadAnchor.remove();
+                    showToast('File memori berhasil diekspor!', 'success');
+                });
+            }
+
+            if (importInput) {
+                importInput.addEventListener('change', (e) => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        try {
+                            const importedKb = JSON.parse(event.target.result);
+                            if (importedKb.nameMappings) {
+                                STATE.knowledgeBase = importedKb;
+                                saveKnowledgeBase();
+                                showToast('Memory berhasil diimpor!', 'success');
+                            } else {
+                                showToast('Format file JSON tidak valid', 'error');
+                            }
+                        } catch(err) {
+                            showToast('Gagal membaca file JSON', 'error');
+                        }
+                    };
+                    reader.readAsText(file);
+                });
+            }
+
+            elements.learnKnowledgeBtn.addEventListener('click', learnFromUserEdits);
+
+            elements.openAddItemBtn.addEventListener('click', () => {
+                triggerHaptic('medium');
+                elements.addItemBackdrop.classList.remove('hidden');
+                elements.addItemSheet.classList.remove('hidden-sheet');
+                setTimeout(() => elements.addItemBackdrop.classList.remove('opacity-0'), 10);
+            });
+
+            elements.closeAddItemBtn.addEventListener('click', () => {
+                elements.addItemBackdrop.classList.add('opacity-0');
+                elements.addItemSheet.classList.add('hidden-sheet');
+                setTimeout(() => elements.addItemBackdrop.classList.add('hidden'), 300);
+            });
+
+            elements.addItemForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const name = elements.addName.value.trim();
+                let size = elements.addSize.value.trim().replace(/(\d+)\s*[xX]\s*(\d+)/g, '$1×$2');
+                const qty = parseInt(elements.addQty.value, 10) || 1;
+                const isXBanner = elements.addIsXBanner.checked;
+
+                if (name) {
+                    STATE.parsedItems.push({
+                        id: Date.now() + Math.random(),
+                        rawSource: name,
+                        name: capitalizeWords(name),
+                        size: isXBanner ? '' : size,
+                        qty: qty,
+                        isXBanner: isXBanner,
+                        needsConfirm: false
+                    });
+
+                    renderInteractiveList();
+                    generateFinalReport();
+
+                    elements.addName.value = '';
+                    elements.addSize.value = '';
+                    elements.addQty.value = '1';
+                    elements.addIsXBanner.checked = false;
+
+                    elements.addItemBackdrop.classList.add('opacity-0');
+                    elements.addItemSheet.classList.add('hidden-sheet');
+                    setTimeout(() => elements.addItemBackdrop.classList.add('hidden'), 300);
+
+                    showToast('Item ditambahkan!', 'success');
+                }
+            });
+
+            elements.cameraInput.addEventListener('change', handleImageSelect);
+            elements.fileInput.addEventListener('change', handleImageSelect);
+
+            elements.cancelImageBtn.addEventListener('click', () => {
+                elements.imagePreprocessCard.classList.add('hidden');
+                STATE.currentImage = null;
+            });
+
+            elements.rotateBtn.addEventListener('click', () => {
+                STATE.rotationAngle = (STATE.rotationAngle + 90) % 360;
+                renderCanvasImage();
+                triggerHaptic('light');
+            });
+
+            elements.processOcrBtn.addEventListener('click', runTesseractOcr);
+
+            elements.manualParseBtn.addEventListener('click', () => {
+                triggerHaptic('medium');
+                STATE.rawText = elements.rawTextInput.value;
+                processRawTextToItems(STATE.rawText);
+                showToast('Pembersihan selesai!', 'success');
+            });
+
+            elements.clearRawBtn.addEventListener('click', () => {
+                elements.rawTextInput.value = '';
+                STATE.rawText = '';
+                STATE.parsedItems = [];
+                renderInteractiveList();
+                generateFinalReport();
+                showToast('Teks dibersihkan');
+            });
+
+            elements.copyBtn.addEventListener('click', copyReportToClipboard);
+            elements.saveHistoryBtn.addEventListener('click', saveToHistory);
+            elements.clearHistoryBtn.addEventListener('click', clearAllHistory);
+        }
+
+        function handleImageSelect(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            triggerHaptic('medium');
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const img = new Image();
+                img.onload = () => {
+                    STATE.currentImage = img;
+                    STATE.rotationAngle = 0;
+                    renderCanvasImage();
+                    elements.imagePreprocessCard.classList.remove('hidden');
+                    elements.imagePreprocessCard.scrollIntoView({ behavior: 'smooth' });
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function renderCanvasImage() {
+            if (!STATE.currentImage) return;
+
+            const canvas = elements.cropCanvas;
+            const ctx = canvas.getContext('2d');
+            const img = STATE.currentImage;
+
+            if (STATE.rotationAngle % 180 === 0) {
+                canvas.width = img.width;
+                canvas.height = img.height;
+            } else {
+                canvas.width = img.height;
+                canvas.height = img.width;
+            }
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.save();
+            ctx.translate(canvas.width / 2, canvas.height / 2);
+            ctx.rotate((STATE.rotationAngle * Math.PI) / 180);
+            ctx.drawImage(img, -img.width / 2, -img.height / 2);
+            ctx.restore();
+        }
+
+        async function runTesseractOcr() {
+            if (!STATE.currentImage) return;
+
+            triggerHaptic('medium');
+            elements.imagePreprocessCard.classList.add('hidden');
+            elements.progressCard.classList.remove('hidden');
+            elements.progressCard.scrollIntoView({ behavior: 'smooth' });
+
+            try {
+                const canvas = elements.cropCanvas;
+                const worker = await Tesseract.createWorker('ind', 1, {
+                    logger: m => {
+                        if (m.status === 'recognizing text') {
+                            const pct = Math.round((m.progress || 0) * 100);
+                            elements.progressStatus.textContent = 'Memindai Teks Explorer...';
+                            elements.progressPercent.textContent = `${pct}%`;
+                            elements.progressBar.style.width = `${pct}%`;
+                        } else {
+                            elements.progressStatus.textContent = 'Mempersiapkan OCR Engine...';
+                        }
+                    }
+                });
+
+                const { data: { text } } = await worker.recognize(canvas);
+                await worker.terminate();
+
+                STATE.rawText = text;
+                elements.rawTextInput.value = text;
+                processRawTextToItems(text);
+                
+                elements.progressCard.classList.add('hidden');
+                triggerHaptic('success');
+                showToast('OCR Scan Berhasil!', 'success');
+
+            } catch (error) {
+                console.error('OCR Error:', error);
+                elements.progressCard.classList.add('hidden');
+                showToast('Gagal memproses gambar', 'error');
+            }
+        }
+
+        function learnFromUserEdits() {
+            triggerHaptic('success');
+            let learnedCount = 0;
+
+            STATE.parsedItems.forEach(item => {
+                if (item.rawSource && item.name) {
+                    const rawKey = item.rawSource.toLowerCase().trim();
+                    const cleanName = item.name.trim();
+
+                    if (rawKey && cleanName && rawKey !== cleanName.toLowerCase()) {
+                        STATE.knowledgeBase.nameMappings[rawKey] = cleanName;
+                        learnedCount++;
+                    }
+
+                    if (item.size) {
+                        if (!STATE.knowledgeBase.customerSizes[cleanName]) {
+                            STATE.knowledgeBase.customerSizes[cleanName] = [];
+                        }
+                        if (!STATE.knowledgeBase.customerSizes[cleanName].includes(item.size)) {
+                            STATE.knowledgeBase.customerSizes[cleanName].push(item.size);
+                        }
+                    }
+                    item.needsConfirm = false;
+                }
+            });
+
+            saveKnowledgeBase();
+            renderInteractiveList();
+            generateFinalReport();
+            showToast(`Memory menyimpan ${learnedCount} data koreksi!`, 'success');
+        }
+
+        /**
+         * MULTI-PASS PARSER ENGINE PRESISI LOKAL
+         */
+        function processRawTextToItems(rawText) {
+            if (!rawText || !rawText.trim()) {
+                STATE.parsedItems = [];
+                renderInteractiveList();
+                generateFinalReport();
+                return;
+            }
+
+            const lines = rawText.split(/\r?\n/);
+            const items = [];
+
+            lines.forEach(line => {
+                let cleaned = line.trim();
+                if (!cleaned) return;
+
+                // Abaikan header formal
+                if (/^(Nama|Job|Jam Kerja|Yang sudah|Cetak & Finishing)/i.test(cleaned)) return;
+
+                const rawSourceKey = cleaned.toLowerCase();
+
+                // PASS 1: Hapus Tanggal & Jam Explorer di Ujung Baris
+                cleaned = cleaned.replace(/\s+\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}\s+\d{1,2}[\:\-]\d{2}.*$/gi, '');
+                cleaned = cleaned.replace(/\s+\d{1,2}[\:\-]\d{2}.*$/gi, '');
+
+                // PASS 2: Hapus Prefiks / Kode Awal Sampah
+                cleaned = cleaned.replace(/^\d+[\.\)]\s*/, '');
+                cleaned = cleaned.replace(/^[\#\.\—\-\_\–\s\d\|\:\;\\\/\[\]\(\)\{\}\>\<\~\+\*\’\']+/g, '');
+                cleaned = cleaned.replace(/^(w|cj|li|ld|ce|bi|ke|di\)\s*ki|n\s*\|\s*sl|la)\s+/gi, '');
+
+                // PASS 3: Ekstrak Kuantitas Spesifik
+                let explicitQty = 1;
+                const qtyMatch = cleaned.match(/\b(\d+)\s*[xX]\b/i);
+                if (qtyMatch) {
+                    explicitQty = parseInt(qtyMatch[1], 10);
+                    cleaned = cleaned.replace(qtyMatch[0], '').trim();
+                } else if (/\b00\s*2x\b/i.test(cleaned)) {
+                    explicitQty = 2;
+                    cleaned = cleaned.replace(/\b00\s*2x\b/i, '').trim();
+                }
+
+                // PASS 4: Detect X-Banner
+                const isXBanner = /x\s*ban+er/i.test(cleaned) || /\b(60×160|160×60|60x160|160x60)\b/i.test(cleaned);
+
+                // PASS 5: Ekstrak Ukuran
+                let sizeFound = '';
+                // Standardisasi ukuran ke simbol ×
+                cleaned = cleaned.replace(/(\d+)\s*[xX]\s*(\d+)/g, '$1×$2');
+                const sizeMatch = cleaned.match(/(\d+×\d+)/);
+                if (sizeMatch) {
+                    sizeFound = sizeMatch[1];
+                    cleaned = cleaned.replace(sizeFound, ' ').trim();
+                }
+
+                // PASS 6: Hapus Suffix Ekstensi & Catatan Finishing Sampah
+                cleaned = cleaned.replace(/\.?(jpg|jpeg|ipg|jpng|png|tif|tiff|pdf|cdr|psd)(\.|\s)*$/gi, '');
+                cleaned = cleaned.replace(/(plongjpg|plongipg|polosssjpg|dahliajpg|polosjpngjpeg|jpgjpeg|jegjpeg|jpgj\.\.\.|\.jpg)/gi, '');
+                cleaned = cleaned.replace(/\b(plong|polos|polosss|dahlia|ir)\b/gi, '');
+
+                // PASS 7: Normalisasi Nama
+                let baseName = cleaned.replace(/[\#\.\—\-\_\–\s\d\|\:\;\\\/]+/g, ' ').trim();
+
+                // Pemetaan Ejaan Otomatis dari Knowledge Base
+                if (STATE.knowledgeBase.nameMappings[rawSourceKey]) {
+                    baseName = STATE.knowledgeBase.nameMappings[rawSourceKey];
+                } else {
+                    // Normalisasi Nama Populer Otomatis
+                    if (/tj\s*agus/i.test(baseName) || /agus\s*brimob/i.test(baseName)) baseName = 'Tj Agusbrimob';
+                    else if (/welly/i.test(baseName)) baseName = 'Welly Cattering';
+                    else if (/dwi\s*food/i.test(baseName)) baseName = 'Dwi Food';
+                    else if (/puskesmas/i.test(baseName)) baseName = 'Puskesmas Klabang';
+                    else if (/bunga\s*papan/i.test(baseName) && /care/i.test(baseName)) baseName = 'Bunga Papan Si Care';
+                    else if (/bunga\s*papan/i.test(baseName)) baseName = 'Bunga Papan Pak Heri';
+                    else if (/hajatan/i.test(baseName)) baseName = 'Hati Hati Hajatan';
+                    else if (/5mkn/i.test(baseName) || /smkn/i.test(baseName)) baseName = 'Smkn 1 Tamanan';
+                }
+
+                if (!baseName && !sizeFound) return;
+
+                items.push({
+                    id: Date.now() + Math.random(),
+                    rawSource: rawSourceKey,
+                    name: capitalizeWords(baseName || 'Item Unnamed'),
+                    size: isXBanner ? '' : sizeFound,
+                    qty: explicitQty,
+                    isXBanner: isXBanner,
+                    needsConfirm: false
+                });
+            });
+
+            STATE.parsedItems = items;
+            renderInteractiveList();
+            generateFinalReport();
+        }
+
+        function renderInteractiveList() {
+            const container = elements.interactiveList;
+            container.innerHTML = '';
+
+            if (STATE.parsedItems.length === 0) {
+                container.innerHTML = '<p class="text-xs text-iosGray-500 text-center py-4 italic">Belum ada item terdeteksi.</p>';
+                return;
+            }
+
+            STATE.parsedItems.forEach((item, index) => {
+                const card = document.createElement('div');
+                card.className = `item-card-enter p-2.5 rounded-xl border border-iosGray-200 dark:border-iosGray-600/30 bg-iosBg-light dark:bg-iosBg-dark space-y-2`;
+                card.innerHTML = `
+                    <div class="flex items-center gap-2">
+                        <span class="text-[10px] font-bold text-iosGray-500 w-4">${index + 1}.</span>
+                        <input type="text" value="${item.name}" onchange="updateItemField(${item.id}, 'name', this.value)" placeholder="Nama File" class="flex-1 text-xs font-semibold bg-transparent focus:outline-none focus:border-b focus:border-iosBlue">
+                        
+                        ${item.isXBanner ? `
+                            <span class="text-[9px] font-bold bg-iosOrange/20 text-iosOrange px-2 py-0.5 rounded-full">X-Banner</span>
+                        ` : `
+                            <input type="text" value="${item.size}" onchange="updateItemField(${item.id}, 'size', this.value)" placeholder="Ukuran" class="w-20 text-xs font-mono bg-transparent focus:outline-none focus:border-b focus:border-iosBlue text-center">
+                        `}
+
+                        <div class="flex items-center gap-1 bg-iosGray-200/50 dark:bg-iosGray-600/40 rounded-lg px-1">
+                            <button onclick="updateItemQty(${item.id}, -1)" class="text-xs font-bold px-1 text-iosGray-600 dark:text-iosGray-300">-</button>
+                            <span class="text-xs font-bold px-1">${item.qty}</span>
+                            <button onclick="updateItemQty(${item.id}, 1)" class="text-xs font-bold px-1 text-iosGray-600 dark:text-iosGray-300">+</button>
+                        </div>
+
+                        <button onclick="deleteItem(${item.id})" class="text-iosRed p-1">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                        </button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        window.updateItemField = function(id, field, value) {
+            const item = STATE.parsedItems.find(i => i.id === id);
+            if (item) {
+                if (field === 'size') {
+                    item[field] = value.replace(/(\d+)\s*[xX]\s*(\d+)/g, '$1×$2');
+                } else {
+                    item[field] = value;
+                }
+                generateFinalReport();
+            }
+        };
+
+        window.updateItemQty = function(id, delta) {
+            triggerHaptic('light');
+            const item = STATE.parsedItems.find(i => i.id === id);
+            if (item) {
+                item.qty = Math.max(1, item.qty + delta);
+                renderInteractiveList();
+                generateFinalReport();
+            }
+        };
+
+        window.deleteItem = function(id) {
+            triggerHaptic('medium');
+            STATE.parsedItems = STATE.parsedItems.filter(i => i.id !== id);
+            renderInteractiveList();
+            generateFinalReport();
+            showToast('Item dihapus');
+        };
+
+        function capitalizeWords(str) {
+            return str.replace(/\b\w/g, l => l.toUpperCase());
+        }
+
+        function generateFinalReport() {
+            let report = `Nama : ${STATE.profile.name}\n`;
+            report += `Job : ${STATE.profile.job}\n`;
+            report += `Jam Kerja : ${STATE.profile.shift}\n\n`;
+            report += `Yang sudah dikerjakan\n\n`;
+            report += `• Cetak & Finishing Banner\n\n`;
+
+            if (STATE.parsedItems.length === 0) {
+                report += `1. (Belum ada data cetakan)\n`;
+                elements.outputPreview.textContent = report;
+                return;
+            }
+
+            const groupMap = new Map();
+            const xBannerList = [];
+
+            STATE.parsedItems.forEach(item => {
+                if (item.isXBanner) {
+                    if (item.name) xBannerList.push(item.name);
+                    return;
+                }
+
+                const normKey = item.name.toLowerCase().replace(/\s+/g, '');
+                if (!groupMap.has(normKey)) {
+                    groupMap.set(normKey, { name: item.name, sizeQtyMap: {} });
+                }
+
+                const obj = groupMap.get(normKey);
+                const szKey = item.size || '';
+                obj.sizeQtyMap[szKey] = (obj.sizeQtyMap[szKey] || 0) + item.qty;
+            });
+
+            let itemNumber = 1;
+
+            groupMap.forEach(group => {
+                const parts = [];
+                Object.keys(group.sizeQtyMap).forEach(sz => {
+                    const q = group.sizeQtyMap[sz];
+                    if (!sz) {
+                        if (q > 1) parts.push(`${q}×`);
+                    } else {
+                        if (q > 1) {
+                            parts.push(`${sz} ${q}×`);
+                        } else {
+                            parts.push(sz);
+                        }
+                    }
+                });
+
+                const combinedStr = parts.join(', ');
+                report += `${itemNumber}. ${group.name} ${combinedStr}`.trim() + `\n`;
+                itemNumber++;
+            });
+
+            if (xBannerList.length > 0) {
+                const uniqueX = Array.from(new Set(xBannerList));
+                report += `${itemNumber}. xbanner ${uniqueX.join(', ')}\n`;
+            }
+
+            elements.outputPreview.textContent = report;
+        }
+
+        function copyReportToClipboard() {
+            triggerHaptic('success');
+            const textToCopy = elements.outputPreview.textContent;
+            
+            const dummy = document.createElement('textarea');
+            document.body.appendChild(dummy);
+            dummy.value = textToCopy;
+            dummy.select();
+            document.execCommand('copy');
+            document.body.removeChild(dummy);
+
+            showToast('Laporan disalin ke clipboard!', 'success');
+        }
+
+        function saveToHistory() {
+            if (STATE.parsedItems.length === 0) {
+                showToast('Tidak ada data untuk disimpan');
+                return;
+            }
+
+            triggerHaptic('success');
+            const newEntry = {
+                id: Date.now(),
+                timestamp: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+                date: new Date().toLocaleDateString('id-ID'),
+                content: elements.outputPreview.textContent,
+                count: STATE.parsedItems.length
+            };
+
+            STATE.history.unshift(newEntry);
+            localStorage.setItem('rekap_history', JSON.stringify(STATE.history));
+            renderHistoryUI();
+            showToast('Simpan riwayat berhasil', 'success');
+        }
+
+        function loadHistory() {
+            const saved = localStorage.getItem('rekap_history');
+            if (saved) {
+                try { STATE.history = JSON.parse(saved); } catch(e) {}
+            }
+            renderHistoryUI();
+        }
+
+        function renderHistoryUI() {
+            const container = elements.historyContainer;
+            container.innerHTML = '';
+
+            if (STATE.history.length === 0) {
+                container.innerHTML = '<p class="text-xs text-iosGray-500 text-center py-3 italic">Belum ada riwayat tersimpan hari ini.</p>';
+                return;
+            }
+
+            STATE.history.forEach((item) => {
+                const card = document.createElement('div');
+                card.className = 'p-3 rounded-xl bg-iosBg-light dark:bg-iosBg-dark border border-iosGray-200 dark:border-iosGray-600/30 flex justify-between items-center text-xs';
+                card.innerHTML = `
+                    <div>
+                        <p class="font-bold text-slate-800 dark:text-slate-200">${item.date} (${item.timestamp})</p>
+                        <p class="text-[10px] text-iosGray-500">${item.count} Item Terproses</p>
+                    </div>
+                    <button onclick="loadHistoryItem(${item.id})" class="text-iosBlue font-semibold bg-iosBlue/10 px-2.5 py-1 rounded-lg">
+                        Muat
+                    </button>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        window.loadHistoryItem = function(id) {
+            triggerHaptic('light');
+            const found = STATE.history.find(h => h.id === id);
+            if (found) {
+                elements.outputPreview.textContent = found.content;
+                showToast('Riwayat dimuat');
+            }
+        };
+
+        function clearAllHistory() {
+            triggerHaptic('medium');
+            STATE.history = [];
+            localStorage.removeItem('rekap_history');
+            renderHistoryUI();
+            showToast('Riwayat dibersihkan');
+        }
+
+        function registerServiceWorker() {
+            if ('serviceWorker' in navigator) {
+                const swCode = `
+                    const CACHE_NAME = 'operator-rekap-v5';
+                    self.addEventListener('install', (e) => {
+                        e.waitUntil(
+                            caches.open(CACHE_NAME).then((cache) => cache.addAll(['./']))
+                        );
+                    });
+                    self.addEventListener('fetch', (e) => {
+                        e.respondWith(
+                            caches.match(e.request).then((response) => response || fetch(e.request))
+                        );
+                    });
+                `;
+                const blob = new Blob([swCode], { type: 'text/javascript' });
+                const swUrl = URL.createObjectURL(blob);
+                
+                navigator.serviceWorker.register(swUrl)
+                    .then(() => console.log('SW Active'))
+                    .catch((err) => console.log('SW Fail', err));
+            }
+        }
+    </script>
+</body>
+</html>
